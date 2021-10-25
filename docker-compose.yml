@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  app:
+    image: nginxdemos/hello
+  envoy:
+    image: envoyproxy/envoy-alpine:v1.17-latest
+    command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
+    volumes:
+      - ./hack/envoy-config.dev.yaml:/etc/envoy/envoy.yaml:ro
+    links:
+      - app
+    ports:
+      - 8080:8080
+      - 9090:9090
