@@ -31,7 +31,7 @@ func getAlbums(context *gin.Context) {
 func main() {
 	flag.Parse()
 
-	logrus.Infof("Starting webserver on port :%v", *port)
+	logrus.Infof("Starting webserver on port ':%v'", *port)
 
 	router := gin.Default()
 

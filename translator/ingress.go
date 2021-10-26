@@ -20,6 +20,7 @@ func (a *IngressServer) Check(ctx context.Context, req *auth.CheckRequest) (*aut
 		WithFields(logrus.Fields{
 			"request_id": req.Attributes.Request.Http.Id,
 			"host":       req.Attributes.Request.Http.Host,
+			"path":       req.Attributes.Request.Http.Path,
 			"method":     req.Attributes.Request.Http.Method,
 		})
 	logger.Traceln("Checking ingress request")
