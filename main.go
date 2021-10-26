@@ -37,6 +37,7 @@ func main() {
 
 	logrus.Infof("Starting server on address :%v", *ingressPort)
 	err = grpcServer.Serve(listen)
+
 	if err != nil {
 		logrus.Fatalf("Server could not start: %v", err)
 		return
