@@ -35,8 +35,13 @@ func main() {
 	router := gin.Default()
 	router.LoadHTMLGlob("templates/*")
 
+	var data string
+
 	router.GET("/", func(context *gin.Context) {
-		context.HTML(http.StatusOK, "index.html", gin.H{})
+		context.HTML(http.StatusOK, "index.html", gin.H{
+			"data": data,
+		})
+		data = ""
 	})
 
 	router.POST("/api-call", func(context *gin.Context) {
@@ -46,9 +51,11 @@ func main() {
 		response, err := client.Do(request)
 		if err != nil {
 			logrus.WithError(err).Errorln("Error connecting to API.")
+			data = err.Error()
 		} else {
 			bodyText, _ := ioutil.ReadAll(response.Body)
 			logrus.Infof("Fetched from API: %v", string(bodyText))
+			data = string(bodyText)
 		}
 
 		context.Redirect(http.StatusFound, "/")

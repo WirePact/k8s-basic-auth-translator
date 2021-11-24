@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021
 	github.com/gogo/googleapis v1.4.1
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/net v0.0.0-20211020060615-d418f374d309 // indirect
 	golang.org/x/sys v0.0.0-20211025112917-711f33c9992c // indirect

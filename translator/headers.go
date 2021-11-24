@@ -1,3 +1,6 @@
 package translator
 
-const wirepactIdentityHeader = "X-WirePact-Identity"
+const (
+	wirepactIdentityHeader = "x-wirepact-identity"
+	authorizationHeader = "authorization"
+)

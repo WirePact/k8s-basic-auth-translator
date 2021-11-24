@@ -18,12 +18,13 @@ func (a *IngressServer) Check(ctx context.Context, req *auth.CheckRequest) (*aut
 	logger := logrus.
 		WithContext(ctx).
 		WithFields(logrus.Fields{
+			"type":       "ingress",
 			"request_id": req.Attributes.Request.Http.Id,
 			"host":       req.Attributes.Request.Http.Host,
 			"path":       req.Attributes.Request.Http.Path,
 			"method":     req.Attributes.Request.Http.Method,
 		})
-	logger.Traceln("Checking ingress request")
+	logger.Traceln("Checking ingress request.")
 
 	_, ok := req.Attributes.Request.Http.Headers[wirepactIdentityHeader]
 	if !ok {
@@ -37,6 +38,12 @@ func (a *IngressServer) Check(ctx context.Context, req *auth.CheckRequest) (*aut
 			},
 		}, nil
 	}
+
+	// Since there is a wirepact header, the translator needs to parse the JWT
+	// and checks if it is still valid and correctly signed. To check if a correct
+	// certificate was used, the translator compares the used certificate (x5c header)
+	// against the certificate hash (x5t header) and then checks the certificate against
+	// its own CA certificate.
 
 	// TODO
 	return &auth.CheckResponse{
