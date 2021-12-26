@@ -42,11 +42,7 @@ LABEL org.opencontainers.image.source="https://github.com/WirePact/k8s-basic-aut
 
 WORKDIR /app
 
-ENV BUILD_VERSION=${BUILD_VERSION} \
-    INGRESS_PORT=50051 \
-    EGRESS_PORT=50052 \
-    PKI_ADDRESS="" \
-    CSV_REPOSITORY=""
+ENV BUILD_VERSION=${BUILD_VERSION}
 
 COPY --from=build /etc/passwd /etc/group /etc/
 COPY --from=build /go/bin/app /app/app

@@ -2,11 +2,10 @@ package main
 
 import (
 	"encoding/base64"
-	"flag"
+	"os"
 	"strings"
 
 	"github.com/WirePact/go-translator"
-	"github.com/WirePact/go-translator/pki"
 	"github.com/WirePact/go-translator/translator"
 	"github.com/WirePact/go-translator/wirepact"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -15,44 +14,19 @@ import (
 	"wirepact.ch/k8s-basic-auth-translator/user_repository"
 )
 
-// TODO support different repositories
-// 1: CSV
-// 2: Kubernetes Secret
-// 3: HTTP(s) url
-
-var (
-	ingressPort   = flag.Int("ingressPort", 50051, "The ingressPort that the server starts listening")
-	egressPort    = flag.Int("egressPort", 50052, "The egressPort that the server starts listening")
-	pkiAddress    = flag.String("pkiAddress", "", "The address to where the PKI endpoint is available. If omitted, the PKI is searched via Kubernetes Service.")
-	caPath        = flag.String("pkiCA", "/ca", "The path of the ca endpoint.")
-	csrPath       = flag.String("pkiCSR", "/csr", "The path of the csr endpoint.")
-	csvRepository = flag.String("csvRepository", "", "The path to a CSV user repository (with columns 'username', 'password' and 'userId').")
-)
-
 func main() {
-	flag.Parse()
-
 	logrus.SetLevel(logrus.InfoLevel)
 
-	if *csvRepository != "" {
-		user_repository.ConfigureCSVRepository(*csvRepository)
-	}
+	user_repository.ConfigureCSVRepository(os.Getenv("CSV_PATH"))
 
-	server, _ := go_translator.NewTranslator(&go_translator.TranslatorConfig{
-		IngressPort:       *ingressPort,
-		IngressTranslator: ingress,
-		EgressPort:        *egressPort,
-		EgressTranslator:  egress,
-		Config: pki.Config{
-			BaseAddress:           *pkiAddress,
-			CAPath:                *caPath,
-			CSRPath:               *csrPath,
-			CertificateCommonName: "k8s-basic-auth-translator",
-		},
-		JWTConfig: wirepact.JWTConfig{
-			Issuer: "k8s-basic-auth-translator",
-		},
-	})
+	config, err := go_translator.NewConfigFromEnvironmentVariables(ingress, egress)
+	if err != nil {
+		logrus.WithError(err).Fatalln("Could not initialize translator config.")
+	}
+	server, err := go_translator.NewTranslator(&config)
+	if err != nil {
+		logrus.WithError(err).Fatalln("Could not create translator.")
+	}
 
 	server.Start()
 }
