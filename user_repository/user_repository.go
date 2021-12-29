@@ -24,3 +24,13 @@ func ConfigureCSVRepository(csvPath string) {
 
 	repository = newCSVRepository(csvPath)
 }
+
+// ConfigureKubernetesRepository sets the user repository (for user id lookups)
+// to a csv file.
+func ConfigureKubernetesRepository(secretName string) {
+	if repository != nil {
+		logrus.Fatalln("Repository is already configured. Cannot configure Kubernetes repository.")
+	}
+
+	repository = newKubernetesRepository(secretName)
+}

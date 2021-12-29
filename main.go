@@ -17,7 +17,12 @@ import (
 func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 
-	user_repository.ConfigureCSVRepository(os.Getenv("CSV_PATH"))
+	if os.Getenv("CSV_PATH") != "" {
+		user_repository.ConfigureCSVRepository(os.Getenv("CSV_PATH"))
+	}
+	if os.Getenv("KUBERNETES_SECRET") != "" {
+		user_repository.ConfigureKubernetesRepository(os.Getenv("KUBERNETES_SECRET"))
+	}
 
 	config, err := go_translator.NewConfigFromEnvironmentVariables(ingress, egress)
 	if err != nil {

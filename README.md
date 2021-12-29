@@ -10,9 +10,23 @@ password for the user. With this CSV "repository", the translator is able
 to convert an outgoing communication (egress) to a signed JWT and the incoming communication
 (ingress) back to username/password combination.
 
+Another valid repository is a Kubernetes secret. The data in the secret must be in the form of:
+`userid` as key, and the encoded basic value (`username:password`) as value.
+An example secret could look like:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-credentials
+type: Opaque
+data:
+  123456789: ZFhObGNqcHdZWE56
+```
+
 The configuration is done via environmental variables:
 
 - `CSV_PATH`: The path to the csv file
+- `KUBERNETES_SECRET`: The name of the Kubernetes secret to use for user repository
 - `PKI_ADDRESS`: The address of the available WirePact PKI
 - `COMMON_NAME`: The common name for the translator in the signed JWT and certificates
 - `INGRESS_PORT`: Ingress communication port (default: 50051)
