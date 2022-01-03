@@ -18,9 +18,11 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 
 	if os.Getenv("CSV_PATH") != "" {
+		logrus.Infof("CSV_PATH set to %v, configuring csv repository", os.Getenv("CSV_PATH"))
 		user_repository.ConfigureCSVRepository(os.Getenv("CSV_PATH"))
 	}
 	if os.Getenv("KUBERNETES_SECRET") != "" {
+		logrus.Infof("KUBERNETES_SECRET set to %v, configuring secret repository", os.Getenv("KUBERNETES_SECRET"))
 		user_repository.ConfigureKubernetesRepository(os.Getenv("KUBERNETES_SECRET"))
 	}
 
@@ -33,6 +35,7 @@ func main() {
 		logrus.WithError(err).Fatalln("Could not create translator.")
 	}
 
+	logrus.Infoln("Starting translator.")
 	server.Start()
 }
 
