@@ -11,14 +11,12 @@ services:
     image: ghcr.io/wirepact/demo-applications/basic-auth-backend-app:latest
     environment:
 #      HTTP_PROXY: http://envoy-app:8700
-      - PORT=8000
+      - PORT=8001
       - AUTH_USER=admin
       - AUTH_PASS=supersecret
       - API_URL=http://api:9000/swapi/people
     networks:
       - app-net
-    ports:
-      - 8000:8000
 
   envoy-app:
     image: envoyproxy/envoy:v1.20-latest
@@ -28,7 +26,7 @@ services:
     networks:
       - app-net
     ports:
-      - 8001:8001
+      - 8000:8000
 
   api:
     image: ghcr.io/wirepact/demo-applications/basic-auth-api:latest

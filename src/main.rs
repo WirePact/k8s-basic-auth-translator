@@ -1,7 +1,11 @@
-mod auth;
+use std::sync::Arc;
 
 use clap::{ArgEnum, Parser};
-use log::info;
+use tonic::Status;
+
+use crate::auth::{create_servers, CheckRequest, EgressResult, IngressResult, Translator};
+
+mod auth;
 
 #[derive(Clone, Debug, ArgEnum)]
 enum Mode {
@@ -34,12 +38,12 @@ struct Cli {
     /// If `mode` is set to `kubernetes`, this is the name of the
     /// Kubernetes secret that is used to translate user credentials.
     #[clap(short, long, env)]
-    k8s_secret_name: String,
+    k8s_secret_name: Option<String>,
 
     /// If `mode` is set to `csv`, this is the path to the csv file
     /// that is used to translate user credentials.
     #[clap(short, long, env)]
-    csv_path: String,
+    csv_path: Option<String>,
 
     /// If set, debug log messages are printed as well.
     #[clap(short, long, env)]
@@ -57,5 +61,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .init();
 
+    let translator = Arc::new(BasicAuthTranslator {});
+    create_servers(cli.ingress_port, cli.egress_port, translator).await?;
+
     Ok(())
+}
+
+struct BasicAuthTranslator {}
+
+#[tonic::async_trait]
+impl Translator for BasicAuthTranslator {
+    async fn ingress(
+        &self,
+        subject_id: &str,
+        request: CheckRequest,
+    ) -> Result<IngressResult, Status> {
+        todo!()
+    }
+
+    async fn egress(&self, request: CheckRequest) -> Result<EgressResult, Status> {
+        todo!()
+    }
 }
