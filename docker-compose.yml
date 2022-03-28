@@ -1,49 +1,53 @@
 version: '3.8'
 services:
   pki:
-    image: ghcr.io/wirepact/k8s-pki:1.1.0
+    image: ghcr.io/wirepact/k8s-pki:latest
     command:
-      - '-local'
+      - '--local'
     ports:
       - 8080:8080
 
   app:
-    build:
-      context: example/app
-      dockerfile: Dockerfile
+    image: ghcr.io/wirepact/demo-applications/basic-auth-backend-app:latest
+    environment:
+#      HTTP_PROXY: http://envoy-app:8700
+      - PORT=8000
+      - AUTH_USER=admin
+      - AUTH_PASS=supersecret
+      - API_URL=http://api:9000/swapi/people
     networks:
       - app-net
-    environment:
-      HTTP_PROXY: http://envoy-app:8700
-    command:
-      - '-api=http://envoy-api:8500/albums'
+    ports:
+      - 8000:8000
 
   envoy-app:
-    image: envoyproxy/envoy-alpine:v1.20-latest
+    image: envoyproxy/envoy:v1.20-latest
     command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
     volumes:
       - ./hack/envoy-config.app.yaml:/etc/envoy/envoy.yaml:ro
     networks:
       - app-net
     ports:
-      - 8600:8600
+      - 8001:8001
 
   api:
-    build:
-      context: example/api
-      dockerfile: Dockerfile
+    image: ghcr.io/wirepact/demo-applications/basic-auth-api:latest
+    environment:
+      - PORT=9000
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=supersecret
     networks:
       - app-net
 
-  envoy-api:
-    image: envoyproxy/envoy-alpine:v1.20-latest
-    command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
-    volumes:
-      - ./hack/envoy-config.api.yaml:/etc/envoy/envoy.yaml:ro
-    networks:
-      - app-net
-    ports:
-      - 8500:8500
+#  envoy-api:
+#    image: envoyproxy/envoye:v1.20-latest
+#    command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
+#    volumes:
+#      - ./hack/envoy-config.api.yaml:/etc/envoy/envoy.yaml:ro
+#    networks:
+#      - app-net
+#    ports:
+#      - 8500:8500
 
 networks:
   app-net:
