@@ -11,8 +11,8 @@ pub use server::{EgressResult, IngressResult, Translator};
 use crate::auth::server::{EgressServer, IngressServer};
 
 mod grpc;
-mod server;
 pub mod responses;
+mod server;
 
 pub async fn create_servers(
     ingress_port: u16,
@@ -37,7 +37,8 @@ pub async fn create_servers(
 
     try_join!(
         ingress.serve(ingress_address.parse()?),
-        egress.serve(egress_address.parse()?)
-    )?;
+        egress.serve(egress_address.parse()?),
+    )
+    .await?;
     Ok(())
 }
