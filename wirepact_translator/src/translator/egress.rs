@@ -1,9 +1,19 @@
-use crate::grpc::envoy::config::core::v3::HeaderValue;
+use log::{debug, info};
+use std::sync::Arc;
+
+use tonic::{Request, Response, Status};
+
+use crate::grpc::envoy::service::auth::v3::authorization_server::Authorization;
+use crate::grpc::envoy::service::auth::v3::{CheckRequest, CheckResponse};
+use crate::translator::responses::{egress_ok_response, forbidden_response, noop_ok_response};
+use crate::translator::Translator;
+
+const NO_USER_ID_REASON: &str = "No user id found in outbound communication.";
 
 pub struct EgressResult {
     skip: bool,
     forbidden: Option<String>,
-    headers_to_add: Vec<HeaderValue>,
+    headers_to_remove: Vec<String>,
     user_id: Option<String>,
 }
 
@@ -12,7 +22,7 @@ impl EgressResult {
         Self {
             skip: true,
             forbidden: None,
-            headers_to_add: Vec::new(),
+            headers_to_remove: Vec::new(),
             user_id: None,
         }
     }
@@ -21,7 +31,7 @@ impl EgressResult {
         Self {
             skip: false,
             forbidden: Some(reason),
-            headers_to_add: Vec::new(),
+            headers_to_remove: Vec::new(),
             user_id: None,
         }
     }
@@ -30,20 +40,62 @@ impl EgressResult {
         Self {
             skip: false,
             forbidden: Some("No UserID given for outbound communication.".to_string()),
-            headers_to_add: Vec::new(),
+            headers_to_remove: Vec::new(),
             user_id: None,
         }
     }
 
-    pub fn allowed(
-        user_id: String,
-        headers_to_add: Vec<HeaderValue>,
-    ) -> Self {
+    pub fn allowed(user_id: String, headers_to_remove: Vec<String>) -> Self {
         Self {
             skip: false,
-            forbidden: none,
-            headers_to_add,
+            forbidden: None,
+            headers_to_remove,
             user_id: Some(user_id),
         }
+    }
+}
+
+pub(crate) struct EgressServer {
+    translator: Arc<dyn Translator>,
+    // TODO: PKI/JWT
+}
+
+impl EgressServer {
+    pub(crate) fn new(translator: Arc<dyn Translator>) -> Self {
+        EgressServer { translator }
+    }
+}
+
+#[tonic::async_trait]
+impl Authorization for EgressServer {
+    async fn check(
+        &self,
+        request: Request<CheckRequest>,
+    ) -> Result<Response<CheckResponse>, Status> {
+        debug!("Received egress check request.");
+
+        let egress_result = self.translator.egress(request.get_ref()).await?;
+
+        if egress_result.skip {
+            debug!("Skipping egress request.");
+            return Ok(Response::new(noop_ok_response()));
+        }
+
+        if egress_result.user_id.is_none() {
+            info!("Request is forbidden, reason: no user id is provided.");
+            return Ok(Response::new(forbidden_response(NO_USER_ID_REASON)));
+        }
+
+        if let Some(reason) = egress_result.forbidden {
+            info!("Request is forbidden, reason: {}.", reason);
+            return Ok(Response::new(forbidden_response(reason.as_str())));
+        }
+
+        let user_id = egress_result.user_id.unwrap();
+        debug!("Egress request is allowed for user id {}.", user_id);
+        Ok(Response::new(egress_ok_response(
+            user_id.as_str(),
+            egress_result.headers_to_remove,
+        )))
     }
 }

@@ -10,11 +10,11 @@ services:
   app:
     image: ghcr.io/wirepact/demo-applications/basic-auth-backend-app:latest
     environment:
-#      HTTP_PROXY: http://envoy-app:8700
+      - HTTP_PROXY=http://envoy-app:8500
       - PORT=8001
       - AUTH_USER=admin
       - AUTH_PASS=supersecret
-      - API_URL=http://api:9000/swapi/people
+      - API_URL=http://envoy-api:9000/swapi/people
     networks:
       - app-net
 
@@ -31,21 +31,21 @@ services:
   api:
     image: ghcr.io/wirepact/demo-applications/basic-auth-api:latest
     environment:
-      - PORT=9000
+      - PORT=9001
       - AUTH_USERNAME=admin
       - AUTH_PASSWORD=supersecret
     networks:
       - app-net
 
-#  envoy-api:
-#    image: envoyproxy/envoye:v1.20-latest
-#    command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
-#    volumes:
-#      - ./hack/envoy-config.api.yaml:/etc/envoy/envoy.yaml:ro
-#    networks:
-#      - app-net
-#    ports:
-#      - 8500:8500
+  envoy-api:
+    image: envoyproxy/envoy:v1.20-latest
+    command: envoy -c /etc/envoy/envoy.yaml --component-log-level ext_authz:trace
+    volumes:
+      - ./hack/envoy-config.api.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      - app-net
+    ports:
+      - 9000:9000
 
 networks:
   app-net:

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use clap::{ArgEnum, Parser};
-use tonic::Status;
+use log::{debug, info};
 
-use crate::auth::{create_servers, CheckRequest, EgressResult, IngressResult, Translator};
-
-mod auth;
+use wirepact_translator::{
+    run_translator, CheckRequest, EgressResult, IngressResult, Status, Translator,
+};
 
 #[derive(Clone, Debug, ArgEnum)]
 enum Mode {
@@ -54,32 +54,42 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
+    let level = match cli.debug {
+        true => log::LevelFilter::Debug,
+        false => log::LevelFilter::Info,
+    };
+
     env_logger::builder()
-        .filter_level(match cli.debug {
-            true => log::LevelFilter::Debug,
-            false => log::LevelFilter::Info,
-        })
+        .filter_module("k8s_basic_auth_translator", level)
+        .filter_module("wirepact_translator", level)
         .init();
 
-    let translator = Arc::new(BasicAuthTranslator {});
-    create_servers(cli.ingress_port, cli.egress_port, translator).await?;
+    info!("Starting basic auth translator in {:?} mode.", cli.mode);
+    debug!("Debug logging is enabled.");
+
+    run_translator(
+        cli.ingress_port,
+        cli.egress_port,
+        Arc::new(BasicAuthTranslator {}),
+    )
+    .await?;
 
     Ok(())
 }
 
 struct BasicAuthTranslator {}
 
-#[tonic::async_trait]
+#[wirepact_translator::async_trait]
 impl Translator for BasicAuthTranslator {
     async fn ingress(
         &self,
-        subject_id: &str,
-        request: CheckRequest,
+        _subject_id: &str,
+        _request: &CheckRequest,
     ) -> Result<IngressResult, Status> {
-        todo!()
+        Ok(IngressResult::skip())
     }
 
-    async fn egress(&self, request: CheckRequest) -> Result<EgressResult, Status> {
-        todo!()
+    async fn egress(&self, _request: &CheckRequest) -> Result<EgressResult, Status> {
+        Ok(EgressResult::skip())
     }
 }

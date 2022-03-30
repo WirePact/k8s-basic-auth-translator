@@ -562,6 +562,8 @@ version = "0.0.0-development"
 dependencies = [
  "clap",
  "env_logger",
+ "k8s-openapi",
+ "kube",
  "log",
  "tokio",
  "wirepact-translator",
@@ -1788,9 +1790,6 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 name = "wirepact-translator"
 version = "0.0.0-development"
 dependencies = [
- "env_logger",
- "k8s-openapi",
- "kube",
  "log",
  "prost",
  "prost-types",
