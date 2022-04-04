@@ -1,12 +1,13 @@
-use log::{debug, info};
 use std::sync::Arc;
 
+use log::{debug, error, info};
 use tonic::{Request, Response, Status};
 
 use crate::grpc::envoy::service::auth::v3::authorization_server::Authorization;
 use crate::grpc::envoy::service::auth::v3::{CheckRequest, CheckResponse};
 use crate::translator::responses::{egress_ok_response, forbidden_response, noop_ok_response};
 use crate::translator::Translator;
+use crate::Pki;
 
 const NO_USER_ID_REASON: &str = "No user id found in outbound communication.";
 
@@ -57,12 +58,12 @@ impl EgressResult {
 
 pub(crate) struct EgressServer {
     translator: Arc<dyn Translator>,
-    // TODO: PKI/JWT
+    pki: Arc<Pki>,
 }
 
 impl EgressServer {
-    pub(crate) fn new(translator: Arc<dyn Translator>) -> Self {
-        EgressServer { translator }
+    pub(crate) fn new(translator: Arc<dyn Translator>, pki: Arc<Pki>) -> Self {
+        Self { translator, pki }
     }
 }
 
@@ -88,13 +89,21 @@ impl Authorization for EgressServer {
 
         if let Some(reason) = egress_result.forbidden {
             info!("Request is forbidden, reason: {}.", reason);
-            return Ok(Response::new(forbidden_response(reason.as_str())));
+            return Ok(Response::new(forbidden_response(&reason)));
         }
 
         let user_id = egress_result.user_id.unwrap();
+        let jwt = self.pki.create_signed_jwt(&user_id).map_err(|e| {
+            error!(
+                "Failed to create signed JWT for user id '{}': {}.",
+                user_id, e
+            );
+            Status::internal("Failed to create signed JWT.")
+        })?;
+
         debug!("Egress request is allowed for user id {}.", user_id);
         Ok(Response::new(egress_ok_response(
-            user_id.as_str(),
+            &jwt,
             egress_result.headers_to_remove,
         )))
     }

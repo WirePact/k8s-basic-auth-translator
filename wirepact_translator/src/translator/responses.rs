@@ -84,12 +84,9 @@ pub(crate) fn ingress_ok_response(
 
 #[allow(deprecated)]
 pub(crate) fn egress_ok_response(
-    //TODO: jwt config
-    _user_id: &str,
+    jwt: &str,
     headers_to_remove: Vec<String>,
 ) -> CheckResponse {
-    // TODO: create jwt with user id
-
     CheckResponse {
         status: Some(Status {
             code: GRPC_OK,
@@ -101,7 +98,7 @@ pub(crate) fn egress_ok_response(
             headers: vec![HeaderValueOption {
                 header: Some(HeaderValue {
                     key: WIREPACT_IDENTITY_HEADER.to_string(),
-                    value: "".to_string(), // TODO: this should be the jwt,
+                    value: jwt.to_string(),
                 }),
                 append: None,
                 append_action: 0,

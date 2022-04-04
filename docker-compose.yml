@@ -2,8 +2,9 @@ version: '3.8'
 services:
   pki:
     image: ghcr.io/wirepact/k8s-pki:latest
-    command:
-      - '--local'
+    environment:
+      - DEBUG=true
+      - LOCAL=true
     ports:
       - 8080:8080
 

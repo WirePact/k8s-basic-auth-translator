@@ -16,9 +16,14 @@ enum Mode {
 #[derive(Parser, Debug)]
 #[clap(version, about, long_about = None)]
 struct Cli {
-    /// The address (host:port) of the WirePact PKI.
+    /// The address of the WirePact PKI.
     #[clap(short, long, env)]
     pki_address: String,
+
+    /// The name of the translator. This is used as common name
+    /// when requesting a certificate from the PKI.
+    #[clap(short, long, env, default_value = "k8s basic auth translator")]
+    name: String,
 
     /// The port that the server will listen for
     /// ingress communication (incoming connections) on.
@@ -68,11 +73,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter_module("wirepact_translator", level)
         .init();
 
-    info!("Starting basic auth translator in {:?} mode.", cli.mode);
+    info!(
+        "Starting basic auth translator '{}' in {:?} mode.",
+        cli.name, cli.mode
+    );
     debug!("Debug logging is enabled.");
 
     run_translator(&TranslatorConfig {
         pki_address: cli.pki_address,
+        common_name: cli.name,
         ingress_port: cli.ingress_port,
         egress_port: cli.egress_port,
         translator: Arc::new(BasicAuthTranslator {}),
@@ -95,6 +104,6 @@ impl Translator for BasicAuthTranslator {
     }
 
     async fn egress(&self, _request: &CheckRequest) -> Result<EgressResult, Status> {
-        Ok(EgressResult::skip())
+        Ok(EgressResult::allowed("1".to_string(), vec![]))
     }
 }

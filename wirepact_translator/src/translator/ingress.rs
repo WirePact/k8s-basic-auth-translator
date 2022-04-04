@@ -1,6 +1,6 @@
-use log::{debug, info};
 use std::sync::Arc;
 
+use log::{debug, error, info};
 use tonic::{Request, Response, Status};
 
 use crate::grpc::envoy::config::core::v3::HeaderValue;
@@ -8,6 +8,7 @@ use crate::grpc::envoy::service::auth::v3::authorization_server::Authorization;
 use crate::grpc::envoy::service::auth::v3::{CheckRequest, CheckResponse};
 use crate::translator::responses::{forbidden_response, ingress_ok_response, noop_ok_response};
 use crate::translator::{Translator, WIREPACT_IDENTITY_HEADER};
+use crate::Pki;
 
 pub struct IngressResult {
     skip: bool,
@@ -47,12 +48,12 @@ impl IngressResult {
 
 pub(crate) struct IngressServer {
     translator: Arc<dyn Translator>,
-    // TODO: PKI/JWT
+    pki: Arc<Pki>,
 }
 
 impl IngressServer {
-    pub(crate) fn new(translator: Arc<dyn Translator>) -> Self {
-        IngressServer { translator }
+    pub(crate) fn new(translator: Arc<dyn Translator>, pki: Arc<Pki>) -> Self {
+        Self { translator, pki }
     }
 }
 
@@ -85,9 +86,13 @@ impl Authorization for IngressServer {
             return Ok(Response::new(noop_ok_response()));
         }
 
-        // TODO: get subject, run ingress translator, parse result
+        let wirepact_jwt = wirepact_jwt.unwrap();
+        let subject = self.pki.get_subject_from_jwt(wirepact_jwt).map_err(|e| {
+            error!("Failed to parse signed JWT: {}.", e);
+            Status::internal("Failed to parse signed JWT.")
+        })?;
 
-        let ingress_result = self.translator.ingress("TODO", request).await?;
+        let ingress_result = self.translator.ingress(&subject, request).await?;
 
         if ingress_result.skip {
             debug!("Skipping ingress request.");
@@ -96,7 +101,7 @@ impl Authorization for IngressServer {
 
         if let Some(reason) = ingress_result.forbidden {
             info!("Request is forbidden, reason: {}.", reason);
-            return Ok(Response::new(forbidden_response(reason.as_str())));
+            return Ok(Response::new(forbidden_response(&reason)));
         }
 
         debug!("Ingress request is allowed.");
