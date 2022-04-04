@@ -4,7 +4,7 @@ use clap::{ArgEnum, Parser};
 use log::{debug, info};
 
 use wirepact_translator::{
-    run_translator, CheckRequest, EgressResult, IngressResult, Status, Translator,
+    run_translator, CheckRequest, EgressResult, IngressResult, Status, Translator, TranslatorConfig,
 };
 
 #[derive(Clone, Debug, ArgEnum)]
@@ -16,6 +16,10 @@ enum Mode {
 #[derive(Parser, Debug)]
 #[clap(version, about, long_about = None)]
 struct Cli {
+    /// The address (host:port) of the WirePact PKI.
+    #[clap(short, long, env)]
+    pki_address: String,
+
     /// The port that the server will listen for
     /// ingress communication (incoming connections) on.
     #[clap(short, long, env, default_value = "50051")]
@@ -67,11 +71,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting basic auth translator in {:?} mode.", cli.mode);
     debug!("Debug logging is enabled.");
 
-    run_translator(
-        cli.ingress_port,
-        cli.egress_port,
-        Arc::new(BasicAuthTranslator {}),
-    )
+    run_translator(&TranslatorConfig {
+        pki_address: cli.pki_address,
+        ingress_port: cli.ingress_port,
+        egress_port: cli.egress_port,
+        translator: Arc::new(BasicAuthTranslator {}),
+    })
     .await?;
 
     Ok(())

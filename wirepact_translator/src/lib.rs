@@ -19,26 +19,29 @@ mod grpc;
 mod pki;
 mod translator;
 
-pub async fn run_translator(
-    ingress_port: u16,
-    egress_port: u16,
-    translator: Arc<dyn Translator>,
-) -> Result<(), Box<dyn Error>> {
+pub struct TranslatorConfig {
+    pub pki_address: String,
+    pub ingress_port: u16,
+    pub egress_port: u16,
+    pub translator: Arc<dyn Translator>,
+}
+
+pub async fn run_translator(config: &TranslatorConfig) -> Result<(), Box<dyn Error>> {
     // TODO: get PKI
 
-    let ingress_address = format!("0.0.0.0:{}", ingress_port);
+    let ingress_address = format!("0.0.0.0:{}", config.ingress_port);
     info!("Creating and starting ingress server @ {}", ingress_address);
     let ingress = Server::builder().add_service(
         grpc::envoy::service::auth::v3::authorization_server::AuthorizationServer::new(
-            IngressServer::new(translator.clone()),
+            IngressServer::new(config.translator.clone()),
         ),
     );
 
-    let egress_address = format!("0.0.0.0:{}", egress_port);
+    let egress_address = format!("0.0.0.0:{}", config.egress_port);
     info!("Creating and starting egress server @ {}", egress_address);
     let egress = Server::builder().add_service(
         grpc::envoy::service::auth::v3::authorization_server::AuthorizationServer::new(
-            EgressServer::new(translator.clone()),
+            EgressServer::new(config.translator.clone()),
         ),
     );
 
