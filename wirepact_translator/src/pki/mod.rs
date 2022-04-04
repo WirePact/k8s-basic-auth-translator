@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 use std::error::Error;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::jwk::AlgorithmParameters::RSA;
 use jsonwebtoken::jwk::{Jwk, PublicKeyUse, RSAKeyParameters};
@@ -8,10 +7,8 @@ use jsonwebtoken::{
     decode, decode_header, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
 use log::debug;
-use openssl::hash::{DigestBytes, MessageDigest};
+use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, Private};
-use openssl::ssl::SslContextBuilder;
-use openssl::x509::store::X509StoreBuilder;
 use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 
