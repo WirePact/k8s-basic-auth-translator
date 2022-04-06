@@ -1,8 +1,12 @@
+mod kubernetes;
+mod repository;
+
 use std::sync::Arc;
 
 use clap::{ArgEnum, Parser};
-use log::{debug, info};
+use log::{debug, error, info, warn};
 
+use crate::repository::{LocalCsvRepository, Repository};
 use wirepact_translator::{
     run_translator, CheckRequest, EgressResult, IngressResult, Status, Translator, TranslatorConfig,
 };
@@ -79,31 +83,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     debug!("Debug logging is enabled.");
 
+    let repository = match cli.mode {
+        Mode::Csv => {
+            if cli.csv_path.is_none() {
+                error!("No CSV path provided.");
+                return Err("No CSV path provided.".into());
+            }
+
+            LocalCsvRepository::new(&cli.csv_path.unwrap())
+        }
+        Mode::Kubernetes => Err("Not implemented yet.".into()),
+    }?;
+
     run_translator(&TranslatorConfig {
         pki_address: cli.pki_address,
         common_name: cli.name,
         ingress_port: cli.ingress_port,
         egress_port: cli.egress_port,
-        translator: Arc::new(BasicAuthTranslator {}),
+        translator: Arc::new(BasicAuthTranslator {
+            repository: Arc::new(repository),
+        }),
     })
     .await?;
 
     Ok(())
 }
 
-struct BasicAuthTranslator {}
+struct BasicAuthTranslator {
+    repository: Arc<dyn Repository>,
+}
 
 #[wirepact_translator::async_trait]
 impl Translator for BasicAuthTranslator {
     async fn ingress(
         &self,
-        _subject_id: &str,
-        _request: &CheckRequest,
+        subject_id: &str,
+        request: &CheckRequest,
     ) -> Result<IngressResult, Status> {
-        Ok(IngressResult::skip())
+        let user_information = self.repository.lookup_user(subject_id).await;
+        if user_information.is_none() {
+            warn!("No user information found for subject ID '{}'.", subject_id);
+            return Ok(IngressResult::forbidden(
+                "No user information found.".to_string(),
+            ));
+        }
+
+        let (username, password) = user_information.unwrap();
+        debug!(
+            "Found user information for subject ID '{}': '{}'.",
+            subject_id, username
+        );
+
+        Ok(IngressResult::allowed(
+            Some(vec![(
+                wirepact_translator::HTTP_AUTHORIZATION_HEADER.to_string(),
+                format!(
+                    "Basic {}",
+                    base64::encode(&format!("{}:{}", username, password)),
+                ),
+            )]),
+            None,
+        ))
     }
 
-    async fn egress(&self, _request: &CheckRequest) -> Result<EgressResult, Status> {
-        Ok(EgressResult::allowed("1".to_string(), vec![]))
+    async fn egress(&self, request: &CheckRequest) -> Result<EgressResult, Status> {
+        let auth_header =
+            self.get_header(request, wirepact_translator::HTTP_AUTHORIZATION_HEADER)?;
+
+        if auth_header.is_none() {
+            debug!("No authorization header found. Skip request.");
+            return Ok(EgressResult::skip());
+        }
+
+        let auth_header = auth_header.unwrap();
+        if !auth_header.starts_with("Basic ") {
+            debug!("Authorization header does not start with 'Basic'. Skip Request.");
+            return Ok(EgressResult::skip());
+        }
+
+        debug!("Request contains Basic Auth Header. Create JWT token.");
+
+        let payload = base64::decode(auth_header.replace("Basic ", ""))?.to_str()?;
+        let auth_pair = payload.split(':').collect::<Vec<&str>>();
+
+        if auth_pair.len() != 2 {
+            warn!("Authorization header does not contain a valid username and password pair. Received: {}.", payload);
+            return Ok(EgressResult::forbidden(
+                "Basic Auth data is corrupted.".to_string(),
+            ));
+        }
+
+        if let Some(user_id) = self.repository.lookup_id(auth_pair[0], auth_pair[1]).await {
+            debug!("Found user ID '{}' for basic auth credentials.", user_id);
+            return Ok(EgressResult::allowed(
+                user_id,
+                Some(vec![
+                    wirepact_translator::HTTP_AUTHORIZATION_HEADER.to_string()
+                ]),
+            ));
+        }
+
+        warn!("No user found for Basic Auth credentials.");
+        Ok(EgressResult::no_user_id())
     }
 }

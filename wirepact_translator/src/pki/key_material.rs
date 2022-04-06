@@ -87,17 +87,14 @@ pub(super) async fn load_cert(
     }
 }
 
-pub(super) fn create_key() -> Result<PKey<Private>, Box<dyn Error>> {
+fn create_key() -> Result<PKey<Private>, Box<dyn Error>> {
     let rsa = Rsa::generate(2048)?;
     let key = PKey::from_rsa(rsa)?;
 
     Ok(key)
 }
 
-pub(super) fn create_csr(
-    common_name: &str,
-    key: &PKeyRef<Private>,
-) -> Result<X509Req, Box<dyn Error>> {
+fn create_csr(common_name: &str, key: &PKeyRef<Private>) -> Result<X509Req, Box<dyn Error>> {
     let mut name = X509Name::builder()?;
     name.append_entry_by_nid(Nid::COMMONNAME, common_name)?;
     name.append_entry_by_nid(Nid::ORGANIZATIONNAME, "WirePact PKI")?;

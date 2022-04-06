@@ -46,11 +46,14 @@ impl EgressResult {
         }
     }
 
-    pub fn allowed(user_id: String, headers_to_remove: Vec<String>) -> Self {
+    pub fn allowed(user_id: String, headers_to_remove: Option<Vec<String>>) -> Self {
         Self {
             skip: false,
             forbidden: None,
-            headers_to_remove,
+            headers_to_remove: match headers_to_remove {
+                Some(headers) => headers,
+                None => Vec::new(),
+            },
             user_id: Some(user_id),
         }
     }

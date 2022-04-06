@@ -38,8 +38,8 @@ impl Pki {
         let ca_cert = load_ca(&mut grpc_client).await?;
         let key = load_key().await?;
         let cert = load_cert(&mut grpc_client, common_name, &key).await?;
-
         let common_name = common_name.to_string();
+
         Ok(Self {
             common_name,
             ca_cert,

@@ -36,12 +36,24 @@ impl IngressResult {
         }
     }
 
-    pub fn allowed(headers_to_add: Vec<HeaderValue>, headers_to_remove: Vec<String>) -> Self {
+    pub fn allowed(
+        headers_to_add: Option<Vec<(String, String)>>,
+        headers_to_remove: Option<Vec<String>>,
+    ) -> Self {
         Self {
             skip: false,
             forbidden: None,
-            headers_to_add,
-            headers_to_remove,
+            headers_to_add: match headers_to_add {
+                Some(headers) => headers
+                    .into_iter()
+                    .map(|(key, value)| HeaderValue { key, value })
+                    .collect(),
+                None => Vec::new(),
+            },
+            headers_to_remove: match headers_to_remove {
+                Some(headers) => headers,
+                None => Vec::new(),
+            },
         }
     }
 }
@@ -66,19 +78,9 @@ impl Authorization for IngressServer {
         debug!("Received ingress check request.");
 
         let request = request.get_ref();
-        let attributes = request
-            .attributes
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("attributes not found"))?;
-        let inner_request = attributes
-            .request
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("request not found"))?;
-        let http = inner_request
-            .http
-            .as_ref()
-            .ok_or_else(|| Status::invalid_argument("http not found"))?;
-        let wirepact_jwt = http.headers.get(WIREPACT_IDENTITY_HEADER);
+        let wirepact_jwt = self
+            .translator
+            .get_header(request, WIREPACT_IDENTITY_HEADER)?;
 
         if wirepact_jwt.is_none() {
             debug!("Skipping. No wirepact JWT found in request.");
@@ -87,7 +89,7 @@ impl Authorization for IngressServer {
         }
 
         let wirepact_jwt = wirepact_jwt.unwrap();
-        let subject = self.pki.get_subject_from_jwt(wirepact_jwt).map_err(|e| {
+        let subject = self.pki.get_subject_from_jwt(&wirepact_jwt).map_err(|e| {
             error!("Failed to parse signed JWT: {}.", e);
             Status::internal("Failed to parse signed JWT.")
         })?;
