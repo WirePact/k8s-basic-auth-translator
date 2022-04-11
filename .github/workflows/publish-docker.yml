@@ -59,9 +59,9 @@ jobs:
             BUILD_VERSION=${{ needs.get_next_version.outputs.new_version }}
             COMMIT_SHA=${{ github.sha }}
           tags: |
-            ghcr.io/wirepact/k8s-pki:latest
-            ghcr.io/wirepact/k8s-pki:${{ github.sha }}
-            ghcr.io/wirepact/k8s-pki:${{ needs.get_next_version.outputs.new_version }}
+            ghcr.io/wirepact/k8s-basic-auth-translator:latest
+            ghcr.io/wirepact/k8s-basic-auth-translator:${{ github.sha }}
+            ghcr.io/wirepact/k8s-basic-auth-translator:${{ needs.get_next_version.outputs.new_version }}
 
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v3
