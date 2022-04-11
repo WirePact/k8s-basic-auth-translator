@@ -1,30 +1,19 @@
-FROM golang:1.16-alpine as build
+FROM rust:1.60-alpine as build
+
+ARG BUILD_VERSION
+
+RUN apk add --update --no-cache openssl-dev musl-dev protoc
+RUN rustup component add rustfmt
 
 WORKDIR /app
 
-ENV GOOS=linux \
-    GOARCH=amd64 \
-    USER=appuser \
-    UID=1000
-
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    "${USER}"
-
-COPY go.mod go.sum ./
-RUN go mod download && go mod verify
-
 COPY . .
 
-RUN go build -ldflags="-w -s" -o /go/bin/app
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+RUN sed -i -e "s/^version = .*/version = \"${BUILD_VERSION}\"/" Cargo.toml
+RUN cargo install --path .
 
-
-FROM alpine
+FROM alpine:3.15
 
 ARG BUILD_VERSION
 ARG COMMIT_SHA
@@ -42,14 +31,24 @@ LABEL org.opencontainers.image.source="https://github.com/WirePact/k8s-basic-aut
 
 WORKDIR /app
 
-ENV BUILD_VERSION=${BUILD_VERSION}
+ENV USER=appuser \
+    UID=1000 \
+    BUILD_VERSION=${BUILD_VERSION}
 
-COPY --from=build /etc/passwd /etc/group /etc/
-COPY --from=build /go/bin/app /app/app
-COPY tool/docker_entrypoint.sh /app/entrypoint.sh
+COPY --from=build /usr/local/cargo/bin/k8s-basic-auth-translator /usr/local/bin/k8s-basic-auth-translator
 
-RUN chown -R appuser:appuser /app && chmod +x /app/entrypoint.sh
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    "${USER}" && \
+    chown -R appuser:appuser /app && \
+    chmod +x /usr/local/bin/k8s-basic-auth-translator && \
+    apk add --update --no-cache libgcc ca-certificates
 
 USER appuser:appuser
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/k8s-basic-auth-translator"]
