@@ -2001,7 +2001,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "wirepact-translator"
 version = "0.0.0-development"
-source = "git+https://github.com/WirePact/rust-translator.git?tag=v1.0.0#6371fb7165a4774483253dbcab4cb503a890c469"
+source = "git+https://github.com/WirePact/rust-translator.git?tag=v1.0.1#8cd4965caaf601223414132cf904366136998c20"
 dependencies = [
  "base64",
  "jsonwebtoken",
