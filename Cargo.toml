@@ -13,4 +13,4 @@ kube = { version = "0.69.0" }
 log = "0.4.14"
 serde = { version = "1.0.136", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs"] }
-wirepact-translator = { git = "https://github.com/WirePact/rust-translator.git" }
+wirepact-translator = { git = "https://github.com/WirePact/rust-translator.git", tag = "v1.0.0" }

@@ -1,15 +1,14 @@
-mod kubernetes;
-mod repository;
-
 use std::sync::Arc;
 
 use clap::{ArgEnum, Parser};
 use log::{debug, error, info, warn};
-
-use crate::repository::{LocalCsvRepository, Repository};
 use wirepact_translator::{
     run_translator, CheckRequest, EgressResult, IngressResult, Status, Translator, TranslatorConfig,
 };
+
+use crate::repository::{KubernetesSecretRepository, LocalCsvRepository, Repository};
+
+mod repository;
 
 #[derive(Clone, Debug, ArgEnum)]
 enum Mode {
@@ -83,17 +82,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     debug!("Debug logging is enabled.");
 
-    let repository = match cli.mode {
-        Mode::Csv => {
-            if cli.csv_path.is_none() {
-                error!("No CSV path provided.");
-                return Err("No CSV path provided.".into());
-            }
+    let mut repository: Option<Arc<dyn Repository>> = None;
 
-            LocalCsvRepository::new(&cli.csv_path.unwrap())
+    if let Mode::Csv = cli.mode {
+        if cli.csv_path.is_none() {
+            error!("No CSV path provided.");
+            return Err("No CSV path provided.".into());
         }
-        Mode::Kubernetes => Err("Not implemented yet.".into()),
-    }?;
+
+        repository = Some(Arc::new(LocalCsvRepository::new(&cli.csv_path.unwrap())?));
+    }
+
+    if let Mode::Kubernetes = cli.mode {
+        if cli.k8s_secret_name.is_none() {
+            error!("No Kubernetes secret name provided.");
+            return Err("No Kubernetes secret name provided.".into());
+        }
+
+        repository = Some(Arc::new(
+            KubernetesSecretRepository::new(&cli.k8s_secret_name.unwrap()).await?,
+        ));
+    }
 
     run_translator(&TranslatorConfig {
         pki_address: cli.pki_address,
@@ -101,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ingress_port: cli.ingress_port,
         egress_port: cli.egress_port,
         translator: Arc::new(BasicAuthTranslator {
-            repository: Arc::new(repository),
+            repository: repository.unwrap(),
         }),
     })
     .await?;
@@ -115,12 +124,11 @@ struct BasicAuthTranslator {
 
 #[wirepact_translator::async_trait]
 impl Translator for BasicAuthTranslator {
-    async fn ingress(
-        &self,
-        subject_id: &str,
-        request: &CheckRequest,
-    ) -> Result<IngressResult, Status> {
-        let user_information = self.repository.lookup_user(subject_id).await;
+    async fn ingress(&self, subject_id: &str, _: &CheckRequest) -> Result<IngressResult, Status> {
+        let user_information = self.repository.lookup_user(subject_id).await.map_err(|e| {
+            warn!("Failed to lookup user information: {}", e);
+            Status::internal("Failed to lookup user information.")
+        })?;
         if user_information.is_none() {
             warn!("No user information found for subject ID '{}'.", subject_id);
             return Ok(IngressResult::forbidden(
@@ -163,7 +171,14 @@ impl Translator for BasicAuthTranslator {
 
         debug!("Request contains Basic Auth Header. Create JWT token.");
 
-        let payload = base64::decode(auth_header.replace("Basic ", ""))?.to_str()?;
+        let payload = base64::decode(auth_header.replace("Basic ", "")).map_err(|e| {
+            warn!("Failed to decode basic auth header: {}", e);
+            Status::internal("Failed to decode basic auth header.")
+        })?;
+        let payload = String::from_utf8(payload).map_err(|e| {
+            warn!("Failed to parse basic auth header: {}", e);
+            Status::internal("Failed to parse basic auth header.")
+        })?;
         let auth_pair = payload.split(':').collect::<Vec<&str>>();
 
         if auth_pair.len() != 2 {
@@ -173,7 +188,15 @@ impl Translator for BasicAuthTranslator {
             ));
         }
 
-        if let Some(user_id) = self.repository.lookup_id(auth_pair[0], auth_pair[1]).await {
+        if let Some(user_id) = self
+            .repository
+            .lookup_id(auth_pair[0], auth_pair[1])
+            .await
+            .map_err(|e| {
+                warn!("Failed to lookup user information: {}", e);
+                Status::internal("Failed to lookup user information.")
+            })?
+        {
             debug!("Found user ID '{}' for basic auth credentials.", user_id);
             return Ok(EgressResult::allowed(
                 user_id,

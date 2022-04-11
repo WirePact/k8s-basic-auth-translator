@@ -1,3 +1,4 @@
-userId,username,password
+id,username,password
 1,user,pass
 2,foo,bar
+3,admin,supersecret
