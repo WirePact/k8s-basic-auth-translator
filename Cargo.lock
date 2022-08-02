@@ -675,7 +675,7 @@ dependencies = [
  "clap",
  "csv",
  "env_logger",
- "k8s-openapi",
+ "k8s-openapi 0.14.0",
  "kube",
  "log",
  "serde",
@@ -701,21 +701,35 @@ dependencies = [
 ]
 
 [[package]]
-name = "kube"
-version = "0.72.0"
+name = "k8s-openapi"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "977951a1d7dbce4c6f9c2cbed0711f568df9944010fafa88161a20f7e5163bd3"
+checksum = "d2ae2c04fcee6b01b04e3aadd56bb418932c8e0a9d8a93f48bc68c6bdcdb559d"
 dependencies = [
- "k8s-openapi",
+ "base64",
+ "bytes",
+ "chrono",
+ "serde",
+ "serde-value",
+ "serde_json",
+]
+
+[[package]]
+name = "kube"
+version = "0.74.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a527a8001a61d8d470dab27ac650889938760c243903e7cd90faaf7c60a34bdd"
+dependencies = [
+ "k8s-openapi 0.15.0",
  "kube-client",
  "kube-core",
 ]
 
 [[package]]
 name = "kube-client"
-version = "0.72.0"
+version = "0.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "625e8a89c79dd4e590217838f32274ccbb0f4ecc1db181f84aba3df635fca729"
+checksum = "c0d48f42df4e8342e9f488c4b97e3759d0042c4e7ab1a853cc285adb44409480"
 dependencies = [
  "base64",
  "bytes",
@@ -729,7 +743,7 @@ dependencies = [
  "hyper-openssl",
  "hyper-timeout",
  "jsonpath_lib",
- "k8s-openapi",
+ "k8s-openapi 0.15.0",
  "kube-core",
  "openssl",
  "pem",
@@ -748,14 +762,14 @@ dependencies = [
 
 [[package]]
 name = "kube-core"
-version = "0.72.0"
+version = "0.74.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0491dcd9adca79a96c63404aa978137f5fe1d3db5dcb6e5c0b073f915dbdd49d"
+checksum = "91f56027f862fdcad265d2e9616af416a355e28a1c620bb709083494753e070d"
 dependencies = [
  "chrono",
  "form_urlencoded",
  "http",
- "k8s-openapi",
+ "k8s-openapi 0.15.0",
  "once_cell",
  "serde",
  "serde_json",
